@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   run-test:
-    name: test
+    name: run-test
     runs-on: ubuntu-latest
 
     steps:
