@@ -2,3 +2,7 @@
 __pycache__/
 .pytest_cache/
 test-results/
+.coverage
+coverage.xml
+coverage-results/
+htmlcov/
