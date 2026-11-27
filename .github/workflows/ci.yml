@@ -13,8 +13,33 @@ permissions:
   contents: read
 
 jobs:
+  pylint:
+    name: pylint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --dev
+
+      - name: Run Pylint
+        run: uv run pylint main.py test_main.py
+
   run-test:
     name: run-test
+    needs: pylint
     runs-on: ubuntu-latest
 
     steps:
@@ -49,6 +74,7 @@ jobs:
 
   calculate-coverage:
     name: calculate-coverage
+    needs: pylint
     runs-on: ubuntu-latest
 
     steps:

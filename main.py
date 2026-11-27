@@ -1,8 +1,10 @@
+"""Task management API and arithmetic endpoints."""
+
 import socket
 
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -25,10 +27,15 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 class Operands(BaseModel):
+    """Operands used by arithmetic endpoints."""
+
     a: float
     b: float
 
+
 class Item(BaseModel):
+    """Item stored in the in-memory collection."""
+
     name: str
     description: Optional[str] = None
 
@@ -46,16 +53,19 @@ items: Dict[int, Item] = {
 
 @app.get("/")
 def root() -> dict:
+    """Return the application health message."""
     return {"message": "it works !"}
 
 
 @app.get("/addition")
 def addition(a: int, b: int) -> dict:
+    """Return the sum of two integers."""
     return {"result a+b=": a + b, "developer": "Dev1"}
 
 
 @app.get("/soustraction")
 def soustraction(a: int, b: int) -> dict:
+    """Return the difference between two integers."""
     return {"result a-b=": a - b, "developer": "Dev1"}
 
 
@@ -73,6 +83,7 @@ def current_ip() -> str:
 
 @app.get("/greeting")
 def greeting(name: str) -> dict:
+    """Return a greeting with host information."""
     return {
         "message": f"Hello, {name}",
         "developer": "Dev2",
@@ -83,22 +94,26 @@ def greeting(name: str) -> dict:
 
 @app.post("/multiply")
 def multiply(op: Operands) -> dict:
+    """Return the product of two operands."""
     return {"result a*b=": op.a * op.b, "developer": "Dev1"}
 
 
 @app.post("/divide")
 def divide(op: Operands) -> dict:
+    """Return the quotient of two operands."""
     if op.b == 0:
         raise HTTPException(status_code=400, detail="Division by zero")
     return {"result a/b=": op.a / op.b, "developer": "Dev2"}
 
 @app.get("/items")
 def list_items() -> List[dict]:
+    """Return all stored items."""
     return [{"id": k, **v.model_dump()} for k, v in items.items()]
 
 
 @app.delete("/remove/{item_id}")
 def remove(item_id: int) -> dict:
+    """Delete and return an item by identifier."""
     if item_id not in items:
         raise HTTPException(status_code=404, detail="Item not found")
     del items[item_id]
