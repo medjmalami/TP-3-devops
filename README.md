@@ -1,7 +1,6 @@
-# tp2devops
-# TP2-DEV
+# TP3 DevOps
 
-A minimal **FastAPI** application built as part of the *Plateforme collaborative et intégration continue* lab (ISIMS – A.U. 2024-2025), used to practice collaborative work with GitLab (leader / dev1 / dev2 roles).
+A minimal **FastAPI** application built for the *Plateforme collaborative et intégration continue* lab (ISIMS, 2026–2027). The project uses GitHub and GitHub Actions for collaborative development and continuous integration.
 
 ## Features
 
@@ -23,21 +22,31 @@ A minimal **FastAPI** application built as part of the *Plateforme collaborative
 {"result a+b=": 3, "developer": "Dev1"}
 ```
 
+- `GET /soustraction?a=5&b=3` returns the difference of two integers:
+
+```json
+{"result a-b=": 2, "developer": "Dev1"}
+```
+
+- `POST /multiply` and `POST /divide` calculate products and quotients from a JSON body containing `a` and `b`. Division by zero returns HTTP 400.
+- `GET /items` lists the in-memory items and `DELETE /remove/{item_id}` removes one.
+
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Git
-- PyCharm (recommended) with a local interpreter configured for this project
+- [uv](https://docs.astral.sh/uv/) (recommended for reproducible installs)
+- PyCharm (optional)
 
 ## Getting Started
 
 ### 1. Clone the repository
 
-Use a GitLab **personal access token** for authentication:
+Clone the GitHub repository and install the locked development dependencies:
 
 ```bash
-git clone https://oauth2:<YOUR_PERSONAL_TOKEN>@gitlab.com/<group>/TP2-DEV.git
-cd TP2-DEV
+git clone https://github.com/medjmalami/TP-3-devops.git
+cd TP-3-devops
 ```
 
 ### 2. Create and activate a virtual environment
@@ -55,18 +64,39 @@ source venv/bin/activate
 ### 3. Install dependencies
 
 ```bash
-pip install fastapi "uvicorn[standard]"
+uv sync --locked --dev
 ```
 
 ## Run the Application
 
 ```bash
-uvicorn main:app --reload
+uv run uvicorn main:app --reload
 ```
 
 The app is then available at: <http://127.0.0.1:8000>
 
 ## Test the Application
+
+Run the complete local regression suite, including the subtraction unit test:
+
+```bash
+uv run pytest -v
+```
+
+The current suite contains **7 passing tests** and covers the success and error branches of every endpoint. Generate the coverage reports with:
+
+```bash
+uv run pytest -v --cov=main --cov-report=term-missing \
+  --cov-report=xml:coverage.xml --cov-report=html:htmlcov
+```
+
+The expanded suite currently achieves **100% line coverage** for `main.py`. Check the code quality locally with:
+
+```bash
+uv run pylint main.py test_main.py
+```
+
+Pylint currently reports **10.00/10**.
 
 **In the browser:** open <http://127.0.0.1:8000/> — you should see:
 
@@ -88,28 +118,44 @@ curl http://127.0.0.1:8000/
 ## Project Structure
 
 ```
-TP2-DEV/
-├── main.py      # FastAPI application
-└── README.md    # Project documentation
+TP-3-devops/
+├── .github/workflows/ci.yml  # GitHub Actions quality, test, and coverage jobs
+├── main.py                   # FastAPI application
+├── test_main.py              # API and regression tests
+├── pyproject.toml            # Runtime and development dependencies
+└── README.md                 # Project documentation
 ```
+
+## Continuous integration with GitHub Actions
+
+The workflow in `.github/workflows/ci.yml` runs on pushes to `main` and feature branches, and on pull requests targeting `main`. GitHub Actions does not use GitLab-style stages, so job dependencies express the required order:
+
+1. `pylint` checks `main.py` and `test_main.py` and must score 10/10.
+2. `run-test` runs `pytest -v` and uploads the JUnit XML report as the `junit-test-report` artifact.
+3. `calculate-coverage` runs pytest-cov, writes the percentage to the GitHub Actions job summary, and uploads the XML and HTML reports as the `coverage-report` artifact.
+
+Open the **Actions** tab in GitHub to inspect job logs, summaries, and downloadable artifacts. A failed quality gate prevents the test and coverage jobs from running.
 
 ## Collaborative Workflow
 
 | Role   | Responsibilities |
 |--------|------------------|
-| Leader | Creates the GitLab project, adds dev1 and dev2 as *Developer* members, writes the first app and README, pushes to GitLab |
-| Dev1   | Verifies access, pulls the latest version, runs and tests the app |
-| Dev2   | Verifies access, pulls the latest version, runs and tests the app |
+| Leader | Maintains the GitHub repository, configures Actions and branch protection, and reviews pull requests |
+| Dev1   | Creates a feature branch, implements a change, adds tests, and opens a pull request |
+| Dev2   | Reviews the pull request, checks the Actions results, and verifies the application locally |
 
 Typical cycle:
 
 ```bash
-git pull                      # get the latest version
-# ... make changes ...
-git add .
+git pull
+git switch -c feature/my-change
+# ... make changes and add tests ...
+git add main.py test_main.py
 git commit -m "Describe your change"
-git push
+git push -u origin feature/my-change
 ```
+
+Open a pull request from the feature branch to `main`, and merge only after all three GitHub Actions jobs pass. The merge commit starts the same checks again on `main`.
 
 ## Authors
 

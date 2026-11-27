@@ -1,0 +1,132 @@
+name: test
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  pylint:
+    name: pylint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --dev
+
+      - name: Run Pylint
+        run: uv run pylint main.py test_main.py
+
+  run-test:
+    name: run-test
+    needs: pylint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --dev
+
+      - name: Run unit tests
+        run: |
+          mkdir -p test-results
+          uv run pytest -v --junitxml=test-results/junit.xml
+
+      - name: Upload JUnit test report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-report
+          path: test-results/junit.xml
+          if-no-files-found: error
+
+  calculate-coverage:
+    name: calculate-coverage
+    needs: pylint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Install locked dependencies
+        run: uv sync --locked --dev
+
+      - name: Calculate code coverage
+        run: |
+          mkdir -p coverage-results
+          uv run pytest -v --cov=main \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage-results/coverage.xml \
+            --cov-report=html:coverage-results/htmlcov
+
+      - name: Publish coverage summary
+        if: ${{ always() }}
+        run: |
+          echo "## Code coverage" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f coverage-results/coverage.xml ]; then
+            coverage_percent="$(python - <<'PY'
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse("coverage-results/coverage.xml").getroot()
+          print(f"{float(root.attrib['line-rate']) * 100:.2f}")
+          PY
+            )"
+            echo "Line coverage: **${coverage_percent}%**" >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            uv run coverage report -m >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Coverage report was not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-results
+          if-no-files-found: warn
